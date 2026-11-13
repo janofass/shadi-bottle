@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Shadi Bottle 3D SaaS FastAPI Backend
+
+Globals:
+  Api:
+    EndpointConfiguration: REGIONAL
+    BinaryMediaTypes:
+      - "*/*"
+
+Resources:
+  ShadiBottleApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: app.main.handler
+      Runtime: python3.12
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Events:
+        ProxyApiRoot:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        ProxyApiRootBase:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+
+Outputs:
+  ApiURL:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

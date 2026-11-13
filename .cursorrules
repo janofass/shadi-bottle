@@ -1,0 +1,14 @@
+# Tech Stack
+
+- Backend: Python 3, FastAPI, Pydantic, served via Uvicorn locally.
+- Frontend: React (Vite) with React Three Fiber (`@react-three/fiber`, `@react-three/drei`, `three`) and `lucide-react` icons.
+- Deployment: AWS Lambda (serverless); use boto3 for AWS access.
+- AI: Google Gemini via `google-generativeai`; the key is read from `GEMINI_API_KEY`.
+
+# Conventions
+
+- Backend code lives in `backend/app/`; external integrations go in `backend/app/services/`.
+- Keep Lambda handlers stateless and fast to cold-start; avoid heavy module-level work.
+- Define request/response schemas with Pydantic models and type hints.
+- Never commit secrets; load them from environment variables (`.env`, see `.env.example`).
+- Frontend: functional components and hooks only; 3D scenes go in dedicated components using R3F.
