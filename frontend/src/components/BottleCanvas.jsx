@@ -178,6 +178,10 @@ function tileInnerTexture(texture) {
   texture.repeat.set(2, 1)
 }
 
+function dataTexture(texture) {
+  texture.colorSpace = THREE.NoColorSpace
+}
+
 function useCanvasTexture(canvas, configure) {
   const gl = useThree((state) => state.gl)
   const texture = useMemo(() => {
@@ -277,13 +281,29 @@ function Bottle({ innerEffect }) {
   )
 }
 
-function Sleeve({ sleeveCanvas }) {
+function Sleeve({ sleeveCanvas, metalCanvas, roughnessCanvas, bumpCanvas, foilColor }) {
   const geometry = useMemo(() => buildSleeveGeometry(), [])
   const texture = useCanvasTexture(sleeveCanvas)
+  const metalTexture = useCanvasTexture(metalCanvas, dataTexture)
+  const roughnessTexture = useCanvasTexture(roughnessCanvas, dataTexture)
+  const bumpTexture = useCanvasTexture(bumpCanvas, dataTexture)
 
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshPhysicalMaterial map={texture} transparent roughness={0.5} envMapIntensity={0.5} />
+      <meshPhysicalMaterial
+        map={texture}
+        metalness={1}
+        metalnessMap={metalTexture}
+        roughness={0.5}
+        roughnessMap={roughnessTexture}
+        bumpMap={bumpTexture}
+        bumpScale={0.008}
+        emissive={foilColor}
+        emissiveMap={metalTexture}
+        emissiveIntensity={0.45}
+        transparent
+        envMapIntensity={0.5}
+      />
     </mesh>
   )
 }
@@ -335,7 +355,7 @@ function CameraRig({ cameraView }) {
   return null
 }
 
-export default function BottleCanvas({ sleeveCanvas, cameraView, innerEffect }) {
+export default function BottleCanvas({ sleeveCanvas, metalCanvas, roughnessCanvas, bumpCanvas, foilColor, cameraView, innerEffect }) {
   return (
     <Canvas dpr={[1, 2]} camera={{ position: [0, HEIGHT / 2 + 1, VIEW_DISTANCE], fov: VIEW_FOV }} gl={{ antialias: true }}>
       <color attach="background" args={['#ece7df']} />
@@ -349,7 +369,15 @@ export default function BottleCanvas({ sleeveCanvas, cameraView, innerEffect }) 
         <Lightformer form="ring" intensity={1.2} position={[0, 12, 0]} scale={8} />
       </Environment>
       <Bottle innerEffect={innerEffect} />
-      {sleeveCanvas && <Sleeve sleeveCanvas={sleeveCanvas} />}
+      {sleeveCanvas && (
+        <Sleeve
+          sleeveCanvas={sleeveCanvas}
+          metalCanvas={metalCanvas}
+          roughnessCanvas={roughnessCanvas}
+          bumpCanvas={bumpCanvas}
+          foilColor={foilColor}
+        />
+      )}
       <ContactShadows position={[0, 0, 0]} opacity={0.35} scale={30} blur={2.5} far={6} />
       <OrbitControls makeDefault target={[0, HEIGHT / 2, 0]} enablePan={false} minDistance={60} maxDistance={280} />
       <CameraRig cameraView={cameraView} />

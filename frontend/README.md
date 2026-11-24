@@ -16,8 +16,25 @@ origins require a backend CORS update and deployment.
 
 JPEG files in `src/assets/benchmarks/` are discovered by Vite and appear in the background style selector.
 Use a unique filename stem as the style key (for example, `blue_garden.jpeg` becomes `blue_garden`);
-new styles use a full-image crop and default color treatment. The original nine styles retain their
-custom labels and crops. Rebuild the frontend after adding assets for a production deployment.
+new styles use a full-image crop and default color treatment. Radiant Stardust and Caligraphy Wrap
+are excluded from the selector. Rebuild the frontend after adding assets for a production deployment.
+Selecting a background restores its original image colors and sets the primary color picker to a
+representative image color. Changing the primary color or choosing a palette preset tints the image;
+selecting another background restores that image's original colors.
+Style selection also chooses coordinating foil and text colors from the image. You can override
+either color or apply a palette preset; selecting another style chooses new colors. The front uses
+gold, silver, crimson red, cobalt blue, or noir black text, with gold as the default and an automatic
+finish (gold or silver) or manual choice. Front text
+is drawn directly over the artwork without background patches; the 3D preview uses reflective foil
+and shallow relief on the front text, with stronger bevel and reflections on colored names. Busy artwork
+may still reduce contrast between the letters.
+Behind the bride and groom names and the date, the front has a translucent name banner (a photo,
+banner, text sandwich). Choose its type (strip, card, oval or none), its color (up to three
+dominant colors from the selected photo, plus white and black) and its opacity (default 50%).
+Photos with stock-site watermarks (`circular_gradient`, `dots_in_spectrum`, `roses_are_forever`)
+have a crop treatment in `BENCHMARK_TREATMENTS` that excludes the mark.
+The crest
+switches from a circle to a ribbon when the tagline needs more room.
 The backend's design-brief generator has a separate benchmark image map; newly discovered frontend
 styles send their key but do not automatically attach an image to that generator.
 

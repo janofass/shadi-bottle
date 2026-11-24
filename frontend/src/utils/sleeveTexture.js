@@ -1,7 +1,11 @@
 import QRCode from 'qrcode'
 import { frontTextureMapping } from './bottleProfile'
+import { BANNER_BLACK, chooseStyleDesign, contrast, luminance, rgbToHex } from './styleDesign'
 
-const benchmarkUrls = import.meta.glob('../assets/benchmarks/*.{jpeg,jpg,JPEG,JPG}', {
+const benchmarkUrls = import.meta.glob([
+  '../assets/benchmarks/*.{jpeg,jpg,JPEG,JPG}',
+  '!../assets/benchmarks/{radiant_stardust,caligraphy_wrap}.{jpeg,jpg,JPEG,JPG}',
+], {
   eager: true,
   query: '?url',
   import: 'default',
@@ -27,6 +31,7 @@ export const FONT_LOADS = [
   `24px "Cormorant Garamond"`,
   `italic 24px "Cormorant Garamond"`,
   `bold 24px "Cormorant Garamond"`,
+  `900 64px "Playfair Display"`,
 ]
 
 // Sleeve background alpha < 1 lets the inner petal layer faintly show through the print.
@@ -43,7 +48,6 @@ const FEATURED_STYLES = [
   { id: 'thousand_wishes', label: 'A Thousand Wishes - Glitter Burst' },
   { id: 'dream_bright', label: 'Dream Bright - Gemstone Constellation' },
   { id: 'into_the_night', label: 'Into the Night - Cascading Gold Rain' },
-  { id: 'radiant_stardust', label: 'Radiant Stardust - Blush Radial Rays' },
   { id: 'sweet_pea', label: 'Sweet Pea - Pressed Watercolors' },
   { id: 'covered_in_roses', label: 'Covered in Roses - Lush Velvet Petals' },
   { id: 'white_flower', label: 'White Chamomile - Dense Floral Canopy' },
@@ -61,6 +65,49 @@ export const BACKGROUND_STYLES = [
       label: id.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()),
     })),
 ]
+
+export const BANNER_STYLES = [
+  { id: 'strip', label: 'Strip' },
+  { id: 'card', label: 'Card' },
+  { id: 'oval', label: 'Oval' },
+  { id: 'none', label: 'None' },
+]
+
+// Names, "WED" and the date sit between these rows on the front panel.
+const BANNER_CENTER_Y = 425
+const BANNER_NAME_WIDTH = { strip: 330, card: 330, oval: 270, none: 330 }
+
+export const FRONT_FINISHES = {
+  gold: {
+    label: 'Gold', ink: '#D49A55', emission: '#71380F',
+    colors: ['#D79551', '#A45E25', '#C98441'], shadow: '#794018', outline: '#754017',
+    highlight: '#F4D1A0', nameHighlight: '#FFDBA3',
+    grainLight: 'rgba(255,230,190,0.12)', grainDark: 'rgba(91,43,15,0.12)',
+    reflectionLight: '255,229,182', reflectionDark: '91,43,15', glint: '255,231,191',
+  },
+  silver: { label: 'Silver', ink: '#CCD6E0', emission: '#CCD6E0' },
+  crimson_red: {
+    label: 'Crimson Red', ink: '#A51629', emission: '#5D0710',
+    colors: ['#D54F58', '#8D0D21', '#B92035'], shadow: '#550716', outline: '#480714',
+    highlight: '#F28A91', nameHighlight: '#FFA8A9',
+    grainLight: 'rgba(255,190,190,0.12)', grainDark: 'rgba(65,0,10,0.12)',
+    reflectionLight: '255,190,190', reflectionDark: '65,0,10', glint: '255,190,190',
+  },
+  cobalt_blue: {
+    label: 'Cobalt Blue', ink: '#174EC0', emission: '#08235E',
+    colors: ['#5592E3', '#10358C', '#2C65C8'], shadow: '#091D50', outline: '#07183F',
+    highlight: '#A2C8FF', nameHighlight: '#BDD8FF',
+    grainLight: 'rgba(195,220,255,0.12)', grainDark: 'rgba(2,15,55,0.12)',
+    reflectionLight: '195,220,255', reflectionDark: '2,15,55', glint: '195,220,255',
+  },
+  noir_black: {
+    label: 'Noir Black', ink: '#24262B', emission: '#0B0B0C',
+    colors: ['#55585E', '#121317', '#303238'], shadow: '#050607', outline: '#050607',
+    highlight: '#93979F', nameHighlight: '#B3B7BF',
+    grainLight: 'rgba(210,214,220,0.12)', grainDark: 'rgba(0,0,0,0.12)',
+    reflectionLight: '210,214,220', reflectionDark: '0,0,0', glint: '210,214,220',
+  },
+}
 
 export const GUEST_ICONS = [
   { id: 'sunflower', emoji: '🌻', label: 'Sunflower' },
@@ -93,10 +140,15 @@ const DEFAULTS = {
   accent: '#D4AF37',
   textColor: '#F9F6EE',
   background: 'thousand_wishes',
+  useOriginalBackground: false,
   tagline: 'I Believe in Love',
   groomName: '',
   brideName: '',
-  nameStyle: 'italic',
+  frontFinish: 'gold',
+  autoFrontFinish: 'gold',
+  bannerStyle: 'strip',
+  bannerColor: BANNER_BLACK,
+  bannerOpacity: 0.5,
   weddingDate: '',
   guestIcon: 'rose',
   thankYouNote: '',
@@ -129,20 +181,6 @@ function shade(hex, amt) {
   const p = Math.abs(amt)
   const ch = (shift) => Math.round(((n >> shift) & 255) * (1 - p) + target * p)
   return `rgb(${ch(16)},${ch(8)},${ch(0)})`
-}
-
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16)
-  const [r, g, b] = [16, 8, 0].map((shift) => {
-    const v = ((n >> shift) & 255) / 255
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-  })
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-
-function contrast(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
 }
 
 // Keeps the preferred color when readable on bg, otherwise the most readable fallback.
@@ -183,7 +221,73 @@ const script = (size) => `${size}px ${SCRIPT}`
 
 const contrastChecks = new WeakMap()
 
-function text(ctx, str, x, y, font, fill, align = 'center') {
+function foilText(ctx, str, x, y, metrics, embossed, finish) {
+  const width = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight
+  const height = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+  if (width <= 0 || height <= 0) return
+
+  const pad = 3
+  const layer = document.createElement('canvas')
+  layer.width = Math.ceil(width + pad * 2)
+  layer.height = Math.ceil(height + pad * 2)
+  const foil = layer.getContext('2d')
+  foil.font = ctx.font
+  foil.textAlign = ctx.textAlign
+  foil.textBaseline = ctx.textBaseline
+  foil.lineJoin = 'round'
+  const tx = pad + metrics.actualBoundingBoxLeft
+  const ty = pad + metrics.actualBoundingBoxAscent
+  const sheen = foil.createLinearGradient(0, 0, layer.width, layer.height)
+  finish.colors.forEach((color, i) => sheen.addColorStop(i / (finish.colors.length - 1), color))
+  foil.fillStyle = sheen
+  foil.fillText(str, tx, ty)
+
+  // Keep the finish inside the glyphs, so it cannot make a patch on the artwork.
+  foil.globalCompositeOperation = 'source-atop'
+  const grain = rng(42)
+  for (let i = 0; i < width * height / 180; i++) {
+    foil.fillStyle = i % 2 ? finish.grainLight : finish.grainDark
+    foil.fillRect(grain() * layer.width, grain() * layer.height, 0.6, 1 + grain() * 5)
+  }
+  const glint = foil.createRadialGradient(layer.width * 0.27, layer.height * 0.22, 0, layer.width * 0.27, layer.height * 0.22, height * 1.1)
+  glint.addColorStop(0, `rgba(${finish.glint},0.5)`)
+  glint.addColorStop(1, `rgba(${finish.glint},0)`)
+  foil.fillStyle = glint
+  foil.fillRect(0, 0, layer.width, layer.height)
+  if (embossed) {
+    const start = tx - foil.measureText(str).width / 2
+    let prefix = ''
+    let left = start
+    for (const character of str) {
+      prefix += character
+      const right = start + foil.measureText(prefix).width
+      if (right > left) {
+        const reflection = foil.createLinearGradient(left, 0, right, 0)
+        reflection.addColorStop(0, `rgba(${finish.reflectionDark},0.2)`)
+        reflection.addColorStop(0.18, `rgba(${finish.reflectionLight},0.55)`)
+        reflection.addColorStop(0.42, `rgba(${finish.reflectionLight},0)`)
+        reflection.addColorStop(0.8, `rgba(${finish.reflectionDark},0.2)`)
+        reflection.addColorStop(1, `rgba(${finish.reflectionLight},0.1)`)
+        foil.fillStyle = reflection
+        foil.fillRect(left, 0, right - left, layer.height)
+      }
+      left = right
+    }
+  }
+  foil.lineWidth = embossed ? Math.min(3.2, Math.max(1.4, height / 17)) : Math.min(1.6, Math.max(0.7, height / 35))
+  foil.strokeStyle = finish.shadow
+  foil.strokeText(str, tx + (embossed ? 1 : 0.4), ty + (embossed ? 1 : 0.5))
+  foil.strokeStyle = embossed ? finish.nameHighlight : finish.highlight
+  foil.strokeText(str, tx - (embossed ? 1 : 0.4), ty - (embossed ? 1 : 0.5))
+
+  ctx.strokeStyle = finish.outline
+  ctx.lineWidth = Math.min(1.5, Math.max(0.6, height / 35))
+  ctx.lineJoin = 'round'
+  ctx.strokeText(str, x, y)
+  ctx.drawImage(layer, x - metrics.actualBoundingBoxLeft - pad, y - metrics.actualBoundingBoxAscent - pad)
+}
+
+function text(ctx, str, x, y, font, fill, align = 'center', embossed = false) {
   ctx.font = font
   ctx.fillStyle = fill
   ctx.textAlign = align
@@ -213,7 +317,46 @@ function text(ctx, str, x, y, font, fill, align = 'center') {
       check.lowContrast = low >= 5
     }
   }
-  ctx.fillText(str, x, y)
+  if (check?.finish && fill === check.color) {
+    const foilName = embossed && check.finish !== 'silver'
+    for (const [mask, color] of [
+      [check.metalMask, foilName ? '#a0a0a0' : '#808080'],
+      [check.roughnessMask, foilName ? '#606060' : '#808080'],
+      [check.bumpMask, foilName ? '#ffffff' : '#808080'],
+    ]) {
+      mask.save()
+      mask.setTransform(ctx.getTransform())
+      mask.font = font
+      mask.textAlign = align
+      mask.textBaseline = ctx.textBaseline
+      mask.fillStyle = color
+      if (foilName && mask === check.bumpMask) mask.filter = 'blur(1.2px)'
+      mask.fillText(str, x, y)
+      mask.restore()
+    }
+    ctx.save()
+    const metrics = ctx.measureText(str)
+    const height = Math.max(12, metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent)
+    if (check.finish !== 'silver') {
+      foilText(ctx, str, x, y, metrics, foilName, FRONT_FINISHES[check.finish])
+    } else {
+      ctx.lineWidth = Math.min(1.6, Math.max(0.8, height / 20))
+      ctx.strokeStyle = '#586B7C'
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'
+      ctx.shadowOffsetY = 1.5
+      ctx.shadowBlur = 1.5
+      ctx.strokeText(str, x, y)
+      ctx.shadowColor = 'transparent'
+      const foil = ctx.createLinearGradient(0, y - height / 2, 0, y + height / 2)
+      const colors = ['#8495A5', '#F1F6FA', '#A8B6C2', '#E9F0F5', '#7F91A2']
+      colors.forEach((color, i) => foil.addColorStop(i / (colors.length - 1), color))
+      ctx.fillStyle = foil
+      ctx.fillText(str, x, y)
+    }
+    ctx.restore()
+  } else {
+    ctx.fillText(str, x, y)
+  }
 }
 
 function fitFont(ctx, str, make, maxW, maxSize, minSize = 16) {
@@ -462,12 +605,6 @@ const BENCHMARK_TREATMENTS = {
     tint: 0.12,
     veil: 0.2,
   },
-  radiant_stardust: {
-    crop: [0.08, 0, 0.84, 0.7],
-    filter: 'saturate(1.3) contrast(1.08)',
-    tint: 0.15,
-    veil: 0.35,
-  },
   sweet_pea: {
     crop: [0.12, 0, 0.76, 0.53],
     filter: 'saturate(1.3) contrast(1.05) brightness(1.02)',
@@ -496,6 +633,26 @@ const BENCHMARK_TREATMENTS = {
     crop: [0, 0, 0.32, 0.97],
     pan: 0.22,
     filter: 'saturate(1.3) contrast(1.05)',
+    tint: 0.15,
+    veil: 0.4,
+  },
+  // The iStock credit sits in the lower right, so keep the left 60% of the image.
+  circular_gradient: {
+    crop: [0, 0, 0.6, 1],
+    filter: 'saturate(1.2) contrast(1.05)',
+    tint: 0.12,
+    veil: 0.3,
+  },
+  dots_in_spectrum: {
+    crop: [0, 0, 0.6, 1],
+    filter: 'saturate(1.2) contrast(1.05)',
+    tint: 0.12,
+    veil: 0.3,
+  },
+  // Stock-site marks run along the bottom edge.
+  roses_are_forever: {
+    crop: [0, 0, 1, 0.9],
+    filter: 'saturate(1.25) contrast(1.1)',
     tint: 0.15,
     veil: 0.4,
   },
@@ -551,8 +708,6 @@ function averageColor(canvas) {
   return sum.map((v) => v / (w * h))
 }
 
-const rgbToHex = (rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
-
 const photoCache = new Map()
 
 // One panel of the sleeve background: the photo, color-graded, as a PANEL_W x PANEL_H canvas.
@@ -576,7 +731,7 @@ function photoLayer(key, primary, panel) {
   const sh = fh * img.naturalHeight
   const tileH = sh * (PANEL_W / sw)
 
-  if ('filter' in ctx) ctx.filter = spec.filter
+  if (primary && 'filter' in ctx) ctx.filter = spec.filter
   for (let i = 0, y = 0; y < PANEL_H; i++, y += tileH) {
     ctx.save()
     if (i % 2) {
@@ -590,30 +745,46 @@ function photoLayer(key, primary, panel) {
   }
   if ('filter' in ctx) ctx.filter = 'none'
 
-  // Overlay ties the photo to the chosen palette; multiply deepens the hues toward the bottom.
-  ctx.globalCompositeOperation = 'overlay'
-  ctx.globalAlpha = spec.tint
-  ctx.fillStyle = primary
-  ctx.fillRect(0, 0, PANEL_W, PANEL_H)
-  ctx.globalCompositeOperation = 'multiply'
-  ctx.globalAlpha = 1
-  const depth = ctx.createLinearGradient(0, 0, 0, PANEL_H)
-  depth.addColorStop(0, '#FFFFFF')
-  depth.addColorStop(0.6, '#E4E4E4')
-  depth.addColorStop(1, '#A8A8A8')
-  ctx.fillStyle = depth
-  ctx.fillRect(0, 0, PANEL_W, PANEL_H)
-  ctx.globalCompositeOperation = 'source-over'
-  // Overlay alone cannot tint the black or white parts of a photograph.
-  ctx.globalAlpha = 0.4
-  ctx.fillStyle = primary
-  ctx.fillRect(0, 0, PANEL_W, PANEL_H)
-  ctx.globalAlpha = 1
+  if (primary) {
+    // Overlay ties the photo to the chosen palette; multiply deepens the hues toward the bottom.
+    ctx.globalCompositeOperation = 'overlay'
+    ctx.globalAlpha = spec.tint
+    ctx.fillStyle = primary
+    ctx.fillRect(0, 0, PANEL_W, PANEL_H)
+    ctx.globalCompositeOperation = 'multiply'
+    ctx.globalAlpha = 1
+    const depth = ctx.createLinearGradient(0, 0, 0, PANEL_H)
+    depth.addColorStop(0, '#FFFFFF')
+    depth.addColorStop(0.6, '#E4E4E4')
+    depth.addColorStop(1, '#A8A8A8')
+    ctx.fillStyle = depth
+    ctx.fillRect(0, 0, PANEL_W, PANEL_H)
+    ctx.globalCompositeOperation = 'source-over'
+    // Overlay alone cannot tint the black or white parts of a photograph.
+    ctx.globalAlpha = 0.4
+    ctx.fillStyle = primary
+    ctx.fillRect(0, 0, PANEL_W, PANEL_H)
+    ctx.globalAlpha = 1
+  }
 
-  const layer = { canvas, avg: averageColor(canvas), veil: spec.veil }
+  const layer = { canvas, avg: averageColor(canvas), veil: spec.veil, original: !primary }
   if (photoCache.size >= 48) photoCache.delete(photoCache.keys().next().value)
   photoCache.set(id, layer)
   return layer
+}
+
+export function getBackgroundDesign(key) {
+  const photo = photoLayer(key, null, 0)
+  if (!photo) throw new Error(`Background image is not loaded: ${key}`)
+  const canvas = document.createElement('canvas')
+  canvas.width = 24
+  canvas.height = 32
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(photo.canvas, 48, 240, PANEL_W - 96, 540, 0, 0, canvas.width, canvas.height)
+  const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const samples = []
+  for (let i = 0; i < data.length; i += 4) samples.push([data[i], data[i + 1], data[i + 2]])
+  return { ...chooseStyleDesign(samples), primary: rgbToHex(photo.avg) }
 }
 
 function medallion(ctx, t, cx, cy, r, emoji) {
@@ -664,25 +835,59 @@ function shoulderMedallion(ctx, t, cx, cy, r, emoji) {
 }
 
 function badge(ctx, t, cx, cy, r, tagline) {
-  // First half of the words goes on the small-caps line, the rest in script.
   const words = tagline.trim().split(/\s+/).filter(Boolean)
   const mid = words.length > 1 ? Math.ceil(words.length / 2) : 0
   const top = spaced(words.slice(0, mid).join(' ').toUpperCase())
   const bottom = words.slice(mid).join(' ')
   ctx.save()
-  ctx.fillStyle = metal(ctx, t, cx - r, cy - r, cx + r, cy + r)
+  ctx.font = serif(14, 'bold')
+  const topWidth = ctx.measureText(top).width
+  ctx.font = script(28)
+  const bottomWidth = ctx.measureText(bottom).width
+  if (topWidth > 104 || bottomWidth > 104) {
+    const halfWidth = 180
+    const halfHeight = 42
+    ctx.fillStyle = t.plate
+    ctx.beginPath()
+    ctx.moveTo(cx - halfWidth, cy - halfHeight)
+    ctx.lineTo(cx + halfWidth, cy - halfHeight)
+    ctx.lineTo(cx + halfWidth - 18, cy)
+    ctx.lineTo(cx + halfWidth, cy + halfHeight)
+    ctx.lineTo(cx - halfWidth, cy + halfHeight)
+    ctx.lineTo(cx - halfWidth + 18, cy)
+    ctx.closePath()
+    ctx.fill()
+    ctx.strokeStyle = t.ink
+    ctx.lineWidth = 2
+    ctx.stroke()
+    let size = 26
+    let lines
+    do {
+      ctx.font = serif(size, 'italic')
+      lines = wrapLines(ctx, tagline.trim(), 290)
+      if (lines.length <= 2 && lines.every((line) => ctx.measureText(line).width <= 290)) break
+      size -= 2
+    } while (size > 8)
+    lines.forEach((line, i) => {
+      const font = fitFont(ctx, line, (s) => serif(s, 'italic'), 290, size, 6)
+      text(ctx, line, cx, cy + (i - (lines.length - 1) / 2) * 29, font, t.ink)
+    })
+    ctx.restore()
+    return
+  }
+  ctx.fillStyle = t.plate
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fill()
-  ctx.strokeStyle = t.badgeText
+  ctx.strokeStyle = t.ink
   ctx.lineWidth = 2
   ctx.beginPath()
   ctx.arc(cx, cy, r - 8, 0, Math.PI * 2)
   ctx.stroke()
-  dotsRing(ctx, cx, cy, r - 15, 30, 1.8, t.badgeText)
+  dotsRing(ctx, cx, cy, r - 15, 30, 1.8, t.ink)
   if (top) text(ctx, top, cx, cy - 18, fitFont(ctx, top, (s) => serif(s, 'bold'), 104, 17, 9), t.ink)
   text(ctx, bottom, cx, top ? cy + 14 : cy, fitFont(ctx, bottom, script, 104, 46, 18), t.ink)
-  heart(ctx, cx, cy + 44, 9, t.badgeText)
+  heart(ctx, cx, cy + 44, 9, t.ink)
   ctx.restore()
 }
 
@@ -764,7 +969,7 @@ function barcode(ctx, x, y, w, h) {
 
 // ---------- panels ----------
 
-function panelBase(ctx, t, photo) {
+function panelBase(ctx, t, photo, banner) {
   const g = ctx.createLinearGradient(0, 0, 0, PANEL_H)
   g.addColorStop(0, shade(t.bg, 0.12))
   g.addColorStop(0.5, t.bg)
@@ -776,17 +981,18 @@ function panelBase(ctx, t, photo) {
   if (photo) {
     ctx.drawImage(photo.canvas, 0, 0)
     ctx.globalAlpha = 1
-    // Veil in the photo's own average tone calms busy areas so the printed text stays readable;
-    // it fades out at the top and bottom edges so the photo shows through there.
-    const n = parseInt(t.bg.slice(1), 16)
-    const rgb = `${n >> 16},${(n >> 8) & 255},${n & 255}`
-    const veil = ctx.createLinearGradient(0, 0, 0, PANEL_H)
-    veil.addColorStop(0, `rgba(${rgb},0.05)`)
-    veil.addColorStop(0.18, `rgba(${rgb},${photo.veil})`)
-    veil.addColorStop(0.85, `rgba(${rgb},${photo.veil})`)
-    veil.addColorStop(1, `rgba(${rgb},0.1)`)
-    ctx.fillStyle = veil
-    ctx.fillRect(0, 0, PANEL_W, PANEL_H)
+    if (!photo.original) {
+      // Veil calms busy areas so the printed text stays readable.
+      const n = parseInt(t.bg.slice(1), 16)
+      const rgb = `${n >> 16},${(n >> 8) & 255},${n & 255}`
+      const veil = ctx.createLinearGradient(0, 0, 0, PANEL_H)
+      veil.addColorStop(0, `rgba(${rgb},0.05)`)
+      veil.addColorStop(0.18, `rgba(${rgb},${photo.veil})`)
+      veil.addColorStop(0.85, `rgba(${rgb},${photo.veil})`)
+      veil.addColorStop(1, `rgba(${rgb},0.1)`)
+      ctx.fillStyle = veil
+      ctx.fillRect(0, 0, PANEL_W, PANEL_H)
+    }
   } else {
     ctx.globalAlpha = 1
     const glow = ctx.createRadialGradient(256, 320, 20, 256, 320, 380)
@@ -796,7 +1002,23 @@ function panelBase(ctx, t, photo) {
     ctx.fillRect(0, 0, PANEL_W, PANEL_H)
   }
 
+  if (banner) drawBanner(ctx, banner)
   filigreeFrame(ctx, t, 36, 36, PANEL_W - 72, PANEL_H - 72)
+}
+
+// Middle layer of the photo / banner / text sandwich; the text is drawn after it.
+function drawBanner(ctx, { style, color, opacity }) {
+  const cx = PANEL_W / 2
+  const cy = BANNER_CENTER_Y
+  ctx.save()
+  ctx.globalAlpha = opacity
+  ctx.fillStyle = color
+  ctx.beginPath()
+  if (style === 'strip') ctx.rect(36, cy - 146, PANEL_W - 72, 292)
+  else if (style === 'card') ctx.roundRect(56, cy - 146, PANEL_W - 112, 292, 22)
+  else ctx.ellipse(cx, cy, 214, 166, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
 }
 
 function heroPanel(ctx, t, o) {
@@ -807,20 +1029,24 @@ function heroPanel(ctx, t, o) {
   text(ctx, spaced(icon.label.toUpperCase()), cx, 208, serif(15, 'bold'), t.ink)
   divider(ctx, t, cx, 236, 240)
 
-  const bride = o.brideName || 'Bride'
-  const groom = o.groomName || 'Groom'
-  const nameFace = (size) => serif(size, o.nameStyle === 'italic' ? 'italic' : '')
-  const nameFont = (str) => fitFont(ctx, str, nameFace, 390, 112, 6)
-  text(ctx, bride, cx, 322, nameFont(bride), t.ink)
-  text(ctx, 'wed', cx, 394, nameFace(48), t.ink)
-  text(ctx, groom, cx, 468, nameFont(groom), t.ink)
-
+  const bride = (o.brideName || 'Bride').toUpperCase()
+  const groom = (o.groomName || 'Groom').toUpperCase()
+  const nameFace = (size) => `900 ${size}px "Playfair Display",Georgia,"Times New Roman",serif`
+  const maxNameSize = 68
+  const nameFont = (name) => fitFont(ctx, name, nameFace, BANNER_NAME_WIDTH[o.bannerStyle] ?? 330, maxNameSize, 6)
+  const brideFont = nameFont(bride)
+  const groomFont = nameFont(groom)
+  const wedFont = serif(32, 'bold')
   const date = spaced(formatDate(o.weddingDate).toUpperCase())
-  if (date) text(ctx, date, cx, 540, fitFont(ctx, date, (s) => serif(s, 'bold'), 380, 26, 14), t.ink)
+  const dateFont = fitFont(ctx, date, (s) => serif(s, 'bold'), BANNER_NAME_WIDTH[o.bannerStyle] ?? 330, 26, 14)
+  text(ctx, bride, cx, 322, brideFont, t.ink, 'center', true)
+  text(ctx, 'WED', cx, 394, wedFont, t.ink)
+  text(ctx, groom, cx, 468, groomFont, t.ink, 'center', true)
+  if (date) text(ctx, date, cx, 540, dateFont, t.ink)
 
   badge(ctx, t, cx, 660, 78, o.tagline)
 
-  text(ctx, 'With Gratitude', cx, 790, script(40), t.ink)
+  const gratitudeFont = script(40)
   paragraph(
     ctx,
     o.thankYouNote || 'Thank you for celebrating with us. Your love and blessings made our day unforgettable.',
@@ -831,7 +1057,9 @@ function heroPanel(ctx, t, o) {
     4,
     serif(22, 'italic'),
     t.ink,
+    'center',
   )
+  text(ctx, 'With Gratitude', cx, 790, gratitudeFont, t.ink)
   vine(ctx, t, 70, PANEL_W - 70, 944, 6)
 }
 
@@ -968,7 +1196,7 @@ function regulatoryPanel(ctx, t, o) {
 export function generateSleevePreview(options = {}) {
   const o = { ...DEFAULTS, ...options }
   const primary = validHex(o.primary, DEFAULTS.primary)
-  const photos = [0, 1, 2, 3].map((i) => photoLayer(o.background, primary, i))
+  const photos = [0, 1, 2, 3].map((i) => photoLayer(o.background, o.useOriginalBackground ? null : primary, i))
   const hasPhotos = photos.every(Boolean)
   // With a photo, legibility is computed against the photo's average color instead of the palette primary.
   const avg = hasPhotos ? [0, 1, 2].map((c) => photos.reduce((sum, p) => sum + p.avg[c], 0) / photos.length) : null
@@ -977,11 +1205,44 @@ export function generateSleevePreview(options = {}) {
     accent: validHex(o.accent, DEFAULTS.accent),
     textColor: validHex(o.textColor, DEFAULTS.textColor),
   })
+  const finish = o.frontFinish === 'auto' ? o.autoFrontFinish : o.frontFinish
+  if (!Object.hasOwn(FRONT_FINISHES, finish)) throw new Error(`Unknown front text finish: ${finish}`)
+  if (!BANNER_STYLES.some(({ id }) => id === o.bannerStyle)) throw new Error(`Unknown banner style: ${o.bannerStyle}`)
+  const bannerOpacity = Number.isFinite(Number(o.bannerOpacity)) ? Math.min(1, Math.max(0, Number(o.bannerOpacity))) : DEFAULTS.bannerOpacity
+  const banner = o.bannerStyle === 'none'
+    ? null
+    : { style: o.bannerStyle, color: validHex(o.bannerColor, DEFAULTS.bannerColor), opacity: bannerOpacity }
+  const finishStyle = FRONT_FINISHES[finish]
+  const frontTheme = {
+    ...t,
+    finish,
+    ink: finishStyle.ink,
+    line: finishStyle.ink,
+    plate: primary,
+  }
   const canvas = document.createElement('canvas')
   canvas.width = PANEL_W * PANEL_COUNT
   canvas.height = PANEL_H
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  const check = { color: t.ink, lowContrast: false }
+  const metalCanvas = document.createElement('canvas')
+  metalCanvas.width = canvas.width
+  metalCanvas.height = canvas.height
+  const metalMask = metalCanvas.getContext('2d')
+  metalMask.fillStyle = '#000000'
+  metalMask.fillRect(0, 0, metalCanvas.width, metalCanvas.height)
+  const roughnessCanvas = document.createElement('canvas')
+  roughnessCanvas.width = canvas.width
+  roughnessCanvas.height = canvas.height
+  const roughnessMask = roughnessCanvas.getContext('2d')
+  roughnessMask.fillStyle = '#ffffff'
+  roughnessMask.fillRect(0, 0, roughnessCanvas.width, roughnessCanvas.height)
+  const bumpCanvas = document.createElement('canvas')
+  bumpCanvas.width = canvas.width
+  bumpCanvas.height = canvas.height
+  const bumpMask = bumpCanvas.getContext('2d')
+  bumpMask.fillStyle = '#000000'
+  bumpMask.fillRect(0, 0, bumpCanvas.width, bumpCanvas.height)
+  const check = { color: t.ink, lowContrast: false, metalMask, roughnessMask, bumpMask }
   contrastChecks.set(ctx, check)
 
   try {
@@ -992,14 +1253,18 @@ export function generateSleevePreview(options = {}) {
       ctx.clip()
       ctx.translate(i * PANEL_W, 0)
       ctx.textBaseline = 'middle'
-      panelBase(ctx, t, photos[i])
-      draw(ctx, t, o)
+      const panelTheme = i === 0 ? frontTheme : t
+      check.color = panelTheme.ink
+      check.finish = i === 0 ? panelTheme.finish : null
+      panelBase(ctx, panelTheme, photos[i], i === 0 ? banner : null)
+      draw(ctx, panelTheme, o)
       ctx.restore()
     })
   } finally {
     contrastChecks.delete(ctx)
   }
-  return { canvas, lowContrast: check.lowContrast }
+  const foilColor = finishStyle.emission
+  return { canvas, metalCanvas, roughnessCanvas, bumpCanvas, foilColor, lowContrast: check.lowContrast }
 }
 
 // Returns a 2048x1024 canvas: Front | Right | Left | Back panels, 512px each.

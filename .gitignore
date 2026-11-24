@@ -7,3 +7,5 @@ dist/
 
 .aws-sam/
 backend/.aws-sam/
+.vercel
+.env*

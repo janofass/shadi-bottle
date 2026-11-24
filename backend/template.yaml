@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Shadi Bottle 3D SaaS FastAPI Backend
+Description: Shadi Bottle 3D SaaS FastAPI Backend # Force update
+
+Parameters:
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Description: "Google Gemini API Key for FastAPI backend"
 
 Globals:
   Api:

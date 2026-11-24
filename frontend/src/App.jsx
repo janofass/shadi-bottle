@@ -2,12 +2,16 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import BottleCanvas from './components/BottleCanvas'
 import {
   BACKGROUND_STYLES,
+  BANNER_STYLES,
   FONT_LOADS,
+  FRONT_FINISHES,
   GUEST_ICONS,
   PALETTE_PRESETS,
   generateSleevePreview,
+  getBackgroundDesign,
   loadBackgroundImage,
 } from './utils/sleeveTexture'
+import { bannerColorOptions, defaultBannerColor } from './utils/styleDesign'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const API_URL = new URL('api/generate-sleeve', `${API_BASE_URL.replace(/\/+$/, '')}/`).href
@@ -22,13 +26,22 @@ const VIEWS = [
 const INITIAL_FORM = {
   groomName: 'Bablu',
   brideName: 'Sonya',
-  nameStyle: 'italic',
+  frontFinish: 'gold',
+  autoFrontFinish: 'gold',
   weddingDate: '2026-12-12',
   tagline: 'I Believe in Love',
   primary: '#0A3B2A',
   accent: '#D4AF37',
   textColor: '#F9F6EE',
   background: 'thousand_wishes',
+  useOriginalBackground: true,
+  autoAccent: true,
+  autoTextColor: true,
+  bannerStyle: 'strip',
+  bannerColor: '#000000',
+  autoBannerColor: true,
+  bannerOpacity: 0.5,
+  bannerPalette: [],
   innerEffect: 'rose_petals',
   guestIcon: 'rose',
   thankYouNote: 'Thank you for sharing in our joy and making our special day complete.',
@@ -90,8 +103,27 @@ export default function App() {
   const briefRef = useRef(null)
 
   const update = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }))
+  const updatePrimary = (event) => {
+    const primary = event.target.value
+    setForm((f) => ({ ...f, primary, useOriginalBackground: false }))
+  }
+  const updateBackground = (event) => {
+    const background = event.target.value
+    setForm((f) => ({ ...f, background, useOriginalBackground: true, autoAccent: true, autoTextColor: true, autoBannerColor: true }))
+  }
+  const updateStyleColor = (key, autoKey) => (event) => {
+    const color = event.target.value
+    setForm((f) => ({ ...f, [key]: color, [autoKey]: false }))
+  }
+  const bannerChoices = bannerColorOptions(form.bannerPalette)
+  const bannerChoiceLabel = (color, i) =>
+    i < form.bannerPalette.length ? `Photo color ${i + 1}` : color === '#FFFFFF' ? 'White' : 'Black'
+  const updateBannerColor = (color) => setForm((f) => ({ ...f, bannerColor: color, autoBannerColor: false }))
   const applyPreset = (preset) =>
-    setForm((f) => ({ ...f, primary: preset.primary, accent: preset.accent, textColor: preset.text }))
+    setForm((f) => ({
+      ...f, primary: preset.primary, accent: preset.accent, textColor: preset.text, useOriginalBackground: false,
+      autoAccent: false, autoTextColor: false,
+    }))
   const sameColors = (preset) =>
     preset.primary.toLowerCase() === form.primary.toLowerCase() &&
     preset.accent.toLowerCase() === form.accent.toLowerCase() &&
@@ -110,6 +142,20 @@ export default function App() {
     loadBackgroundImage(form.background).then((loaded) => {
       if (!current) return
       if (loaded) {
+        const design = getBackgroundDesign(form.background)
+        setForm((f) =>
+          f.background === form.background
+            ? {
+                ...f,
+                primary: f.useOriginalBackground ? design.primary : f.primary,
+                accent: f.autoAccent ? design.accent : f.accent,
+                textColor: f.autoTextColor ? design.textColor : f.textColor,
+                bannerPalette: design.palette,
+                bannerColor: f.autoBannerColor ? defaultBannerColor(design.palette) : f.bannerColor,
+                autoFrontFinish: design.frontFinish,
+              }
+            : f,
+        )
         setPhotoError('')
         setPhotoTick((n) => n + 1)
       } else {
@@ -181,7 +227,15 @@ export default function App() {
     <div className="workspace">
       <section className="viewport" aria-label="3D bottle preview">
         <div className="canvas-wrap">
-          <BottleCanvas sleeveCanvas={sleevePreview.canvas} cameraView={cameraView} innerEffect={form.innerEffect} />
+          <BottleCanvas
+            sleeveCanvas={sleevePreview.canvas}
+            metalCanvas={sleevePreview.metalCanvas}
+            roughnessCanvas={sleevePreview.roughnessCanvas}
+            bumpCanvas={sleevePreview.bumpCanvas}
+            foilColor={sleevePreview.foilColor}
+            cameraView={cameraView}
+            innerEffect={form.innerEffect}
+          />
         </div>
         <div className="views" role="group" aria-label="Camera presets">
           {VIEWS.map((view) => (
@@ -208,10 +262,12 @@ export default function App() {
           <Field label="Bride name">
             <input value={form.brideName} onChange={update('brideName')} maxLength={40} />
           </Field>
-          <Field label="Couple name font">
-            <select value={form.nameStyle} onChange={update('nameStyle')}>
-              <option value="italic">Italic</option>
-              <option value="normal">Upright</option>
+          <Field label="Front text finish">
+            <select value={form.frontFinish} onChange={update('frontFinish')}>
+              <option value="auto">Automatic</option>
+              {Object.entries(FRONT_FINISHES).map(([id, finish]) => (
+                <option key={id} value={id}>{finish.label}</option>
+              ))}
             </select>
           </Field>
           <Field label="Wedding date">
@@ -242,15 +298,19 @@ export default function App() {
             label="Primary base color"
             hint="Match with Bride's lehenga / gown"
             value={form.primary}
-            onChange={update('primary')}
+            onChange={updatePrimary}
           />
           <ColorField
             label="Accent / foil color"
             hint="Borders, monograms and filigree"
             value={form.accent}
-            onChange={update('accent')}
+            onChange={updateStyleColor('accent', 'autoAccent')}
           />
-          <ColorField label="Text / secondary color" value={form.textColor} onChange={update('textColor')} />
+          <ColorField
+            label="Text / secondary color"
+            value={form.textColor}
+            onChange={updateStyleColor('textColor', 'autoTextColor')}
+          />
           {sleevePreview.lowContrast && (
             <p className="hint" role="status">
               Some text may be hard to read against the background, card or accent. Consider changing your colors.
@@ -259,9 +319,57 @@ export default function App() {
         </fieldset>
 
         <fieldset>
+          <legend>Name banner</legend>
+          <p className="hint">Photo, then a translucent banner, then the names and date on top.</p>
+          <div className="segmented" role="group" aria-label="Banner type">
+            {BANNER_STYLES.map((style) => (
+              <button
+                key={style.id}
+                type="button"
+                aria-pressed={form.bannerStyle === style.id}
+                onClick={() => setForm((f) => ({ ...f, bannerStyle: style.id }))}
+              >
+                {style.label}
+              </button>
+            ))}
+          </div>
+          {form.bannerStyle !== 'none' && (
+            <>
+              <div className="field">
+                <span>Banner color</span>
+                <div className="banner-colors" role="group" aria-label="Banner color">
+                  {bannerChoices.map((color, i) => (
+                    <button
+                      key={`${color}-${i}`}
+                      type="button"
+                      className="banner-color"
+                      style={{ background: color }}
+                      title={`${bannerChoiceLabel(color, i)} ${color.toUpperCase()}`}
+                      aria-label={`${bannerChoiceLabel(color, i)} ${color.toUpperCase()}`}
+                      aria-pressed={form.bannerColor.toLowerCase() === color.toLowerCase()}
+                      onClick={() => updateBannerColor(color)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <Field label={`Banner opacity: ${Math.round(form.bannerOpacity * 100)}%`}>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={Math.round(form.bannerOpacity * 100)}
+                  onChange={(event) => setForm((f) => ({ ...f, bannerOpacity: Number(event.target.value) / 100 }))}
+                />
+              </Field>
+            </>
+          )}
+        </fieldset>
+
+        <fieldset>
           <legend>Style</legend>
           <Field label="Background style">
-            <select value={form.background} onChange={update('background')}>
+            <select value={form.background} onChange={updateBackground}>
               {BACKGROUND_STYLES.map((style) => (
                 <option key={style.id} value={style.id}>
                   {style.label}

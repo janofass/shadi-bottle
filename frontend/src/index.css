@@ -295,3 +295,50 @@ input[type='color'] {
     grid-template-rows: 50% 50%;
   }
 }
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.segmented button {
+  padding: 7px 4px;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #cfc4b2;
+  border-radius: 6px;
+}
+
+.segmented button[aria-pressed='true'] {
+  border-color: #b8932f;
+  box-shadow: 0 0 0 2px rgba(184, 147, 47, 0.35);
+}
+
+.banner-colors {
+  display: flex;
+  gap: 10px;
+}
+
+.banner-color {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 50%;
+}
+
+.banner-color[aria-pressed='true'] {
+  outline: 2px solid #b8932f;
+  outline-offset: 2px;
+}
+
+input[type='range'] {
+  padding: 0;
+  border: 0;
+}
